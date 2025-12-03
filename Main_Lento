@@ -1,0 +1,702 @@
+"""
+VS MUSIC - VERSÃO LENTA (Linear Search + BubbleSort)
+"""
+
+from flask import Flask, redirect, render_template, request, jsonify, g
+from flask import url_for, abort
+import sqlite3
+import unicodedata
+import os
+import time
+from functools import wraps
+
+# Medição de tempo
+
+def measure_time(func):
+    """Decorator que mede e registra o tempo de execução de uma função."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        elapsed = time.time() - start
+        print(f"⏱️  [LENTO: {func.__name__}] Executado em {elapsed:.4f}s")
+        return result
+    return wrapper
+
+# Instância da aplicação Flask
+app = Flask(__name__)
+
+# Configurações de banco de dados
+DB_PATH = "spotify.db"
+
+
+def normalize_text(text_string):
+    """
+    Normaliza texto removendo acentos e convertendo para minúsculas.
+    
+    Utilizada para buscas case-insensitive e sem acentuação.
+    
+    Args:
+        text_string (str): Texto a ser normalizado
+    
+    Returns:
+        str: Texto normalizado
+    
+    Exemplo:
+        normalize_text("José") → "jose"
+    """
+    if not text_string:
+        return ""
+    
+    # Converte para minúsculas e remove espaços em branco
+    text_string = str(text_string).lower().strip()
+    
+    # Normaliza caracteres acentuados 
+    text_string = unicodedata.normalize('NFKD', text_string)
+    
+    text_string = ''.join(ch for ch in text_string if not unicodedata.combining(ch))
+    
+    return text_string
+
+
+# Algoritmos lentos
+
+def linear_search(items, key, key_extractor):
+    """
+    Busca linear (O(n)) — percorre cada elemento até encontrar.
+    
+    LENTO: Verifica cada elemento sequencialmente.
+    
+    Args:
+        items: Lista de dicionários
+        key: Chave a buscar
+        key_extractor: Função para extrair a chave do item
+    
+    Returns:
+        Lista de itens que contêm a chave
+    """
+    results = []
+    for item in items:
+        if key in key_extractor(item):
+            results.append(item)
+    return results
+
+
+def bubble_sort(items, sort_key):
+    """
+    BubbleSort (O(n²)) — compara e troca elementos adjacentes repetidamente.
+    
+    LENTO: Faz muitas comparações e trocas desnecessárias.
+    
+    Args:
+        items: Lista a ordenar
+        sort_key: Função para extrair a chave de ordenação
+    
+    Returns:
+        Lista ordenada
+    """
+    array = items.copy()
+    n = len(array)
+    
+    # Percorre a lista n vezes
+    for i in range(n):
+        swapped = False
+        # Compara e troca elementos adjacentes
+        for j in range(0, n - i - 1):
+            if sort_key(array[j]) > sort_key(array[j + 1]):
+                # Troca
+                array[j], array[j + 1] = array[j + 1], array[j]
+                swapped = True
+        # Se não houver trocas, a lista já está ordenada
+        if not swapped:
+            break
+    
+    return array
+
+
+# Verifica se o arquivo de banco de dados existe no inicializar
+if not os.path.exists(DB_PATH):
+    print("❌ Banco de dados 'spotify.db' não encontrado.")
+    print("   Execute o script 'sql.py' para criar o banco de dados.")
+else:
+    print("✅ Banco de dados carregado com sucesso!")
+
+
+def get_db():
+    """
+    Obtém ou cria uma conexão com o banco de dados SQLite.
+    
+    Utiliza Flask's 'g' para armazenar a conexão por request (uma conexão por request).
+    Registra a função 'normalize_text' como função SQL customizada.
+    
+    Returns:
+        sqlite3.Connection: Conexão com o banco de dados
+    """
+    database = getattr(g, '_database', None)
+    if database is None:
+        # Cria nova conexão para este request
+        database = g._database = sqlite3.connect(DB_PATH)
+        
+        # Registra a função de normalização como função SQL
+        database.create_function("NORMALIZE", 1, normalize_text)
+    
+    return database
+
+
+@app.teardown_appcontext
+def close_database_connection(exception):
+    """
+    Fecha a conexão com o banco de dados ao finalizar o request.
+    
+    Args:
+        exception: Exceção (se houver) que ocorreu durante o request
+    """
+    database = getattr(g, '_database', None)
+    if database is not None:
+        database.close()
+
+# rotas da aplicação
+
+@app.route('/')
+def home():
+    """Página inicial do site."""
+    return render_template('home.html')
+
+
+@app.route('/login')
+def login():
+    """Página de login (em desenvolvimento)."""
+    return render_template('login.html')
+
+
+@app.route('/registro')
+def registro():
+    """Página de registro de novo usuário (em desenvolvimento)."""
+    return render_template('registro.html')
+
+
+# rotas de gêneros - páginas de exploração de músicas por gênero
+
+def fetch_songs_by_genre(genre_keyword, limit=100):
+    """
+    Função auxiliar para buscar músicas de um gênero no banco de dados.
+    
+    Args:
+        genre_keyword (str): Palavra-chave do gênero (ex: 'rock', 'pop')
+        limit (int): Número máximo de músicas a retornar
+    
+    Returns:
+        list: Lista de dicionários com título, artista e duração formatada
+    """
+    songs_list = []
+    try:
+        database = get_db()
+        cursor = database.cursor()
+
+        # Busca um subconjunto maior para depois ordenar em memória 
+        fetch_limit = max(limit * 50, 500)
+        cursor.execute("""
+            SELECT track_name, artist_name, popularity, formatted_duration
+            FROM musicas
+            WHERE LOWER(genre) LIKE ?
+            LIMIT ?
+        """, (f'%{genre_keyword}%', fetch_limit))
+
+        rows = cursor.fetchall()
+
+        for row in rows:
+            songs_list.append({
+                "title": row[0] or '',
+                "artist": row[1] or '',
+                "popularity": row[2] or 0,
+                "tempo": row[3] or ''
+            })
+
+        # Ordena em memória usando BubbleSort para simular lentidão
+        start_time = time.time()
+        songs_list = bubble_sort(songs_list, lambda x: (-x['popularity'], x['artist'].lower(), x['title'].lower()))
+        elapsed = time.time() - start_time
+        print(f"⏱️  [LENTO] Ordenação por BubbleSort levou {elapsed:.4f}s para {len(songs_list)} itens")
+
+        # Limita ao tamanho pedido
+        songs_list = songs_list[:limit]
+    except Exception as error:
+        print(f"Erro ao buscar músicas de {genre_keyword}:", error)
+
+    return songs_list
+
+
+@app.route('/rock')
+@measure_time
+def rock():
+    """Página com músicas do gênero Rock."""
+    songs = fetch_songs_by_genre('rock')
+    return render_template('rock.html', songs=songs)
+
+
+@app.route('/pop')
+def pop():
+    """Página com músicas do gênero Pop."""
+    songs = fetch_songs_by_genre('pop')
+    return render_template('pop.html', songs=songs)
+
+
+@app.route('/eletrônica')
+def eletronica():
+    """Página com músicas do gênero Eletrônica (Trance)."""
+    songs = fetch_songs_by_genre('trance')
+    return render_template('eletrônica.html', songs=songs)
+
+
+@app.route('/jazz')
+def jazz():
+    """Página com músicas do gênero Jazz."""
+    songs = fetch_songs_by_genre('jazz')
+    return render_template('jazz.html', songs=songs)
+
+
+@app.route('/sertanejo')
+def sertanejo():
+    """Página com músicas do gênero Sertanejo."""
+    songs = fetch_songs_by_genre('sertanejo')
+    return render_template('sertanejo.html', songs=songs)
+
+
+# ROTAS DE TOPS  MusicAS - Páginas com músicas populares por gênero
+
+def fetch_top_songs_by_genre(genre_keyword, limit=100):
+    """
+    Função auxiliar para buscar as músicas mais populares de um gênero.
+    
+    Ordenação: BubbleSort (O(n²)) — LENTO
+    
+    Args:
+        genre_keyword (str): Palavra-chave do gênero (ex: 'rock', 'pop')
+        limit (int): Número máximo de músicas a retornar
+    
+    Returns:
+        list: Lista de dicionários ordenada por popularidade (BubbleSort)
+    """
+    songs_list = []
+    try:
+        database = get_db()
+        cursor = database.cursor()
+
+        # Busca e ordena por popularidade diretamente no SQL
+        cursor.execute("""
+            SELECT track_name, artist_name, popularity, formatted_duration
+            FROM musicas
+            WHERE LOWER(genre) LIKE ?
+            ORDER BY popularity DESC
+            LIMIT ?
+        """, (f'%{genre_keyword}%', limit))
+
+        rows = cursor.fetchall()
+        for row in rows:
+            songs_list.append({
+                "title": row[0] or '',
+                "artist": row[1] or '',
+                "popularity": row[2] or 0,
+                "tempo": row[3] or ''
+            })
+    except Exception as error:
+        print(f"❌ Erro ao buscar tops de {genre_keyword}:", error)
+
+    return songs_list
+
+
+@app.route('/tops-rock')
+@measure_time
+def tops_rock():
+    """Página com as músicas mais populares do gênero Rock."""
+    songs = fetch_top_songs_by_genre('rock')
+    return render_template('tops-rock.html', songs=songs)
+
+
+@app.route('/tops-sertanejo')
+def tops_sertanejo():
+    """Página com as músicas mais populares do gênero Sertanejo."""
+    songs = fetch_top_songs_by_genre('sertanejo')
+    return render_template('tops-sertanejo.html', songs=songs)
+
+
+@app.route('/tops-eletronica')
+def tops_eletronica():
+    """Página com as músicas mais populares do gênero Eletrônica."""
+    songs = fetch_top_songs_by_genre('trance')
+    return render_template('tops-eletronica.html', songs=songs)
+
+
+@app.route('/tops-pop')
+def tops_pop():
+    """Página com as músicas mais populares do gênero Pop."""
+    songs = fetch_top_songs_by_genre('pop')
+    return render_template('tops-pop.html', songs=songs)
+
+
+# ROTA DE BUSCA - Barra de pesquisa
+
+@app.route('/search')
+@measure_time
+def search():
+    """
+    Endpoint de busca de músicas por título ou artista.
+    
+    Algoritmo: BUSCA LINEAR (O(n)) + BUBBLE SORT (O(n²)) — LENTO
+    
+    Estratégia:
+    1. Carrega TODAS as músicas do banco de dados em memória
+    2. Usa busca linear para filtrar resultados
+    3. Usa bubble sort para ordenar por relevância
+    
+    Returns:
+        JSON: Lista de até 8 músicas ordenadas por relevância
+    
+    Exemplo de requisição:
+        GET /search?query=bohemian
+    """
+    search_query = request.args.get('query', '').strip()
+    
+    # Se a query está vazia, retorna resultado vazio
+    if not search_query:
+        return jsonify([])
+
+    try:
+        # Normaliza a query para comparação
+        normalized_query = normalize_text(search_query)
+
+        database = get_db()
+        cursor = database.cursor()
+        start_time = time.time()
+
+        # Parâmetro opcional para forçar varredura completa (cuidado: MUITO LENTO)
+        full_scan = request.args.get('full_scan', '0') in ('1', 'true', 'True')
+        batch_size = 10000
+
+        results = []
+
+        if full_scan:
+            print("⏱️  [LENTO-FULL] Iniciando varredura completa (fetchmany)...")
+            cursor.execute("""
+                SELECT track_name, artist_name, formatted_duration, normalized_track, normalized_artist
+                FROM musicas
+            """)
+            total_loaded = 0
+            scan_start = time.time()
+            while True:
+                rows = cursor.fetchmany(batch_size)
+                if not rows:
+                    break
+                total_loaded += len(rows)
+                for row in rows:
+                    track_name, artist_name, formatted_duration, norm_track, norm_artist = row
+                    if normalized_query in (norm_track or '') or normalized_query in (norm_artist or ''):
+                        if (norm_track or '').startswith(normalized_query):
+                            priority = 0
+                        elif (norm_artist or '').startswith(normalized_query):
+                            priority = 1
+                        else:
+                            priority = 2
+                        results.append({
+                            'title': track_name or '',
+                            'artist': artist_name or '',
+                            'tempo': formatted_duration or '',
+                            'priority': priority,
+                            'artist_name': artist_name or ''
+                        })
+            scan_time = time.time() - scan_start
+            print(f"⏱️  [LENTO-FULL] Scan completo, carregadas {total_loaded} linhas em {scan_time:.4f}s")
+        else:
+            # Pré-filtra candidatos por SQL 
+            print("⏱️  [LENTO] Usando pré-filtragem SQL para reduzir candidatos")
+            cursor.execute("""
+                SELECT track_name, artist_name, formatted_duration, normalized_track, normalized_artist
+                FROM musicas
+                WHERE normalized_track LIKE ? OR normalized_artist LIKE ?
+                LIMIT 5000
+            """, (f"%{normalized_query}%", f"%{normalized_query}%"))
+            rows = cursor.fetchall()
+            print(f"⏱️  [LENTO] SQL retornou {len(rows)} candidatos")
+            # percorre o subset com busca linear
+            for row in rows:
+                track_name, artist_name, formatted_duration, norm_track, norm_artist = row
+                if normalized_query in (norm_track or '') or normalized_query in (norm_artist or ''):
+                    if (norm_track or '').startswith(normalized_query):
+                        priority = 0
+                    elif (norm_artist or '').startswith(normalized_query):
+                        priority = 1
+                    else:
+                        priority = 2
+                    results.append({
+                        'title': track_name or '',
+                        'artist': artist_name or '',
+                        'tempo': formatted_duration or '',
+                        'priority': priority,
+                        'artist_name': artist_name or ''
+                    })
+
+        # Ordena resultados usando BubbleSort 
+        sort_start = time.time()
+        def multi_key_sort(item):
+            return (item['priority'], item['artist_name'].lower(), item['title'].lower())
+        results = bubble_sort(results, multi_key_sort)
+        sort_elapsed = time.time() - sort_start
+        print(f"⏱️  BubbleSort levou {sort_elapsed:.4f}s para ordenar {len(results)} itens (O(n²))")
+
+        # Remove campos auxiliares e limita a 8 resultados
+        final_results = []
+        for r in results[:8]:
+            final_results.append({
+                'title': r['title'],
+                'artist': r['artist'],
+                'tempo': r['tempo']
+            })
+
+        total_time = time.time() - start_time
+        print(f"⏱️  BUSCA TOTAL (LENTO): {total_time:.4f}s | {len(final_results)} resultados\n")
+
+        return jsonify(final_results)
+
+    except Exception as error:
+        print(f"❌ Erro na busca: {error}")
+        return jsonify([])
+
+
+# Lista de playlists
+@app.route('/playlists')
+@measure_time
+def playlists():
+    playlists = []
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        # Busca sem ORDER BY e ordena em memória via BubbleSort para simular lentidão
+        cursor.execute("SELECT id, name, description, created_at FROM playlists")
+        rows = cursor.fetchall()
+        for row in rows:
+            playlists.append({
+                'id': row[0],
+                'name': row[1] or '',
+                'description': row[2] or '',
+                'created_at': row[3] or ''
+            })
+        # Ordena em memória por created_at (BubbleSort)
+        def playlist_key(p):
+            return p.get('created_at') or ''
+        playlists = bubble_sort(playlists, lambda x: playlist_key(x))
+        playlists = list(reversed(playlists))
+    except Exception as e:
+        # tabela pode não existir ainda
+        print('Erro ao listar playlists:', e)
+
+    return render_template('playlists.html', playlists=playlists)
+
+
+@app.route('/playlist/<int:playlist_id>')
+def playlist_detail(playlist_id):
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('SELECT id, name, description, created_at FROM playlists WHERE id = ?', (playlist_id,))
+        row = cursor.fetchone()
+        if not row:
+            abort(404)
+
+        playlist = {
+            'id': row[0],
+            'name': row[1] or '',
+            'description': row[2] or '',
+            'created_at': row[3] or ''
+        }
+
+        # Buscar músicas da playlist via tabela playlist_tracks
+        songs = []
+        try:
+            cursor.execute("""
+                SELECT m.track_name, m.artist_name, m.formatted_duration, pt.id as track_id
+                FROM playlist_tracks pt
+                JOIN musicas m ON pt.music_id = m.rowid
+                WHERE pt.playlist_id = ?
+                ORDER BY pt.position ASC
+            """, (playlist_id,))
+            rows = cursor.fetchall()
+            for row in rows:
+                songs.append({
+                    'title': row[0] or '',
+                    'artist': row[1] or '',
+                    'tempo': row[2] or '',
+                    'track_id': row[3]
+                })
+        except Exception:
+            # tabela playlist_tracks pode não existir ainda
+            pass
+        
+        # Buscar playlists para o sidebar (ordenação em memória para demo lenta)
+        playlists = []
+        try:
+            cursor.execute("SELECT id, name FROM playlists")
+            rows = cursor.fetchall()
+            for row in rows:
+                playlists.append({'id': row[0], 'name': row[1] or ''})
+            # Ordena em memória por nome (BubbleSort) para simular lentidão
+            playlists = bubble_sort(playlists, lambda x: x['name'].lower())
+        except Exception:
+            pass
+        
+        return render_template('playlist_detail.html', playlist=playlist, songs=songs, playlists=playlists)
+    except Exception as e:
+        print('Erro ao carregar playlist:', e)
+        abort(500)
+    
+# Criar playlist 
+@app.route('/criar-playlist', methods=['GET', 'POST'])
+def criar_playlist():
+    success = False
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        if name:
+            try:
+                db = get_db()
+                cursor = db.cursor()
+
+                # cria a tabela de playlists no SQL
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS playlists (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        created_at TEXT DEFAULT (datetime('now'))
+                    )
+                """)
+                cursor.execute(
+                    "INSERT INTO playlists (name, description) VALUES (?, ?)",
+                    (name, description)
+                )
+                db.commit()
+                
+                # redireciona para evitar repost do form
+                return redirect(request.path + "?success=1")
+            except Exception as e:
+                print("Erro ao criar playlist:", e)
+
+    success = request.args.get('success') == '1'
+    # Buscar playlists para exibir no sidebar (ordenação em memória para demo lenta)
+    playlists = []
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT id, name FROM playlists")
+        rows = cursor.fetchall()
+        for row in rows:
+            playlists.append({'id': row[0], 'name': row[1] or ''})
+        playlists = bubble_sort(playlists, lambda x: x['name'].lower())
+    except Exception:
+        # tabela pode não existir ainda; ignorar
+        pass
+
+    return render_template('criar_playlist.html', success=success, playlists=playlists)
+
+
+# Excluir playlist
+@app.route('/playlist/<int:playlist_id>/delete', methods=['POST'])
+def delete_playlist(playlist_id):
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        # remove a playlist e suas músicas associadas
+        cursor.execute('DELETE FROM playlists WHERE id = ?', (playlist_id,))
+        # Também remove as músicas associadas (se a tabela existir)
+        try:
+            cursor.execute('DELETE FROM playlist_tracks WHERE playlist_id = ?', (playlist_id,))
+        except:
+            pass
+        db.commit()
+        print(f"✅ Playlist {playlist_id} deletada com sucesso")
+    except Exception as e:
+        print(f'Erro ao excluir playlist: {e}')
+    # redireciona para a lista de playlists (mais seguro que referrer)
+    return redirect(url_for('criar_playlist'))
+
+
+# Adicionar música as playlists criadas
+@app.route('/playlist/<int:playlist_id>/add-music', methods=['POST'])
+def add_music_to_playlist(playlist_id):
+    data = request.get_json() or {}
+    title = data.get('title')
+    artist = data.get('artist')
+    
+    if not title or not artist:
+        return jsonify({'error': 'title e artist obrigatórios'}), 400
+    
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Cria a tabela playlist_tracks
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS playlist_tracks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id INTEGER NOT NULL,
+                music_id INTEGER NOT NULL,
+                position INTEGER DEFAULT 0,
+                added_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Buscar música no banco de dados
+        cursor.execute(
+            'SELECT rowid FROM musicas WHERE track_name = ? AND artist_name = ?',
+            (title, artist)
+        )
+        music_row = cursor.fetchone()
+        if not music_row:
+            return jsonify({'error': 'Música não encontrada'}), 404
+        
+        music_id = music_row[0]
+        
+        # Encontra a próxima posição
+        cursor.execute(
+            'SELECT MAX(position) FROM playlist_tracks WHERE playlist_id = ?',
+            (playlist_id,)
+        )
+        max_pos = cursor.fetchone()[0] or -1
+        next_pos = max_pos + 1
+        
+        # Insere a música
+        cursor.execute(
+            'INSERT INTO playlist_tracks (playlist_id, music_id, position) VALUES (?, ?, ?)',
+            (playlist_id, music_id, next_pos)
+        )
+        db.commit()
+        return jsonify({'success': True, 'track_id': cursor.lastrowid})
+    except Exception as e:
+        print('Erro ao adicionar música:', e)
+        return jsonify({'error': str(e)}), 500
+
+
+# Remover música das playlist criadas
+@app.route('/playlist/<int:playlist_id>/remove-music/<int:track_id>', methods=['POST'])
+def remove_music_from_playlist(playlist_id, track_id):
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            'DELETE FROM playlist_tracks WHERE id = ? AND playlist_id = ?',
+            (track_id, playlist_id)
+        )
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        print('Erro ao remover música:', e)
+        return jsonify({'error': str(e)}), 500
+
+#Main - VERSÃO LENTA
+if __name__ == "__main__":
+    print("\n" + "="*60)
+    print(" VERSÃO LENTA - Busca Linear (O(n)) + BubbleSort (O(n²))")
+    print("="*60)
+    print("Porta: 5001")
+    print("="*60 + "\n")
+    app.run(debug=True, port=5001)
