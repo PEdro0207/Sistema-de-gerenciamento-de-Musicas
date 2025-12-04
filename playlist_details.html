@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ playlist.name }} - SoundWave</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='css/imagem/logo.jpg') }}">
+    <meta name="theme-color" content="#111111">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/playlist_detail.css') }}">
+    <script src="https://kit.fontawesome.com/b0a8104a4c.js" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Stack+Sans+Notch:wght@200..700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Barra lateral -->
+    <div class="container">
+        <nav class="sidebar">
+
+            <div class="logo-titulo">
+                <img src="/static/css/imagem/logo.jpg" alt="logo do site">
+                <h1>SoundWave</h1>
+            </div>
+            <div class="nav-library">
+                <i class="fa-solid fa-book"></i>
+                <p>Sua Biblioteca</p>
+            </div>
+            <div class="nav-playlist">
+                <a href="{{ url_for('criar_playlist') }}">
+                    <button><i class="fa-solid fa-plus"></i>Criar Playlist</button></a>
+            </div>
+            <div class="nav-home">
+                <a href="{{ url_for('home') }}">
+                    <button><i class="fa-regular fa-house"></i>Home</button></a>
+            </div>
+            <!-- Lista de playlists (dinâmica) -->
+            <div class="my-playlists">
+                {% if playlists %}
+                {% for p in playlists %}
+                <div class="sidebar-playlist-row">
+                    <a class="sidebar-playlist" href="{{ url_for('playlist_detail', playlist_id=p.id) }}">
+                        <i class="fa-regular fa-list-music"></i>
+                        <span class="playlist-name">{{ p.name }}</span>
+                    </a>
+                    <form class="playlist-delete-form" method="post"
+                        action="{{ url_for('delete_playlist', playlist_id=p.id) }}"
+                        onsubmit="return confirm('Excluir playlist \'' + '{{ p.name }}' + '\' ?');">
+                        <button type="submit" title="Excluir playlist" class="playlist-delete-btn">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="no-playlists">Nenhuma playlist</p>
+                {% endif %}
+            </div>
+            <div class="nav-config">
+                <button>
+                    <i class="fa-solid fa-gear"></i>
+                    Configurações
+                </button>
+                <button>
+                    <i class="fa-solid fa-globe"></i>
+                    Linguagem
+                </button>
+            </div>
+        </nav>
+
+        <main>
+            <!-- Barra de pesquisa -->
+            <header class="top-bar">
+                <div class="search-bar">
+                    <div class="search-row">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input id="search-input" placeholder="Buscar música para adicionar...">
+                    </div>
+                    <div id="results" class="search-results"></div>
+                </div>
+            </header>
+
+            <!-- Lista de músicas da playlist -->
+            <section class="genre-list" data-playlist-id="{{ playlist.id }}">
+                <h2>{{ playlist.name }}</h2>
+                {% if playlist.description %}
+                <p class="playlist-description">{{ playlist.description }}</p>
+                {% endif %}
+
+                {% if songs %}
+                <h3>Músicas ({{ songs|length }})</h3>
+                <ul class="song-list">
+                    {% for song in songs %}
+                    <li class="song-item" data-title="{{ song.title }}" data-artist="{{ song.artist }}"
+                        data-tempo="{{ song.tempo }}" data-track-id="{{ song.track_id }}" data-genre="{{ song.genre if song.genre is defined else '' }}">
+                        <strong>{{ song.title }}</strong>
+                        {% if song.artist %}<span class="song-artist"> — {{ song.artist }}</span>{% endif %}
+                        {% if song.tempo %}<span class="song-duration">{{ song.tempo }}</span>{% endif %}
+                        <button class="remove-song-btn-inline" type="button" title="Remover da playlist"
+                            onclick="removeSongFromPlaylist(event, '{{ song.track_id }}')">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>Nenhuma música nesta playlist. Use a barra de pesquisa acima para adicionar.</p>
+                {% endif %}
+            </section>
+
+            <!-- Player bar -->
+            <div id="player-bar" class="player-bar hidden">
+                <div class="player-controls">
+                    <button id="prev-btn"><i class="fa-solid fa-backward-step"></i></button>
+                    <button id="play-btn"><i class="fa-solid fa-play"></i></button>
+                    <button id="next-btn"><i class="fa-solid fa-forward-step"></i></button>
+                </div>
+                <div class="player-timeline">
+                    <span id="current-time" class="song-time"></span>
+                    <input type="range" id="progress-bar" min="0" max="100" value="0" step="1">
+                    <span id="total-time">0:00</span>
+                </div>
+                <div class="player-info">
+                    <span id="current-song">Nenhuma música tocando</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='center.js') }}"></script>
+    <script src="{{ url_for('static', filename='playlist_detail.js') }}"></script>
+</body>
+
+</html>
