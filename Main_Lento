@@ -19,7 +19,7 @@ def measure_time(func):
         start = time.time()
         result = func(*args, **kwargs)
         elapsed = time.time() - start
-        print(f"⏱️  [LENTO: {func.__name__}] Executado em {elapsed:.4f}s")
+        print(f"[LENTO: {func.__name__}] Executado em {elapsed:.4f}s")
         return result
     return wrapper
 
@@ -34,21 +34,10 @@ def normalize_text(text_string):
     """
     Normaliza texto removendo acentos e convertendo para minúsculas.
     
-    Utilizada para buscas case-insensitive e sem acentuação.
-    
-    Args:
-        text_string (str): Texto a ser normalizado
-    
-    Returns:
-        str: Texto normalizado
-    
-    Exemplo:
-        normalize_text("José") → "jose"
     """
     if not text_string:
         return ""
     
-    # Converte para minúsculas e remove espaços em branco
     text_string = str(text_string).lower().strip()
     
     # Normaliza caracteres acentuados 
@@ -65,15 +54,6 @@ def linear_search(items, key, key_extractor):
     """
     Busca linear (O(n)) — percorre cada elemento até encontrar.
     
-    LENTO: Verifica cada elemento sequencialmente.
-    
-    Args:
-        items: Lista de dicionários
-        key: Chave a buscar
-        key_extractor: Função para extrair a chave do item
-    
-    Returns:
-        Lista de itens que contêm a chave
     """
     results = []
     for item in items:
@@ -84,30 +64,22 @@ def linear_search(items, key, key_extractor):
 
 def bubble_sort(items, sort_key):
     """
-    BubbleSort (O(n²)) — compara e troca elementos adjacentes repetidamente.
+    BubbleSort (O(n²)) — compara e troca elementos repetidamente.
     
-    LENTO: Faz muitas comparações e trocas desnecessárias.
-    
-    Args:
-        items: Lista a ordenar
-        sort_key: Função para extrair a chave de ordenação
-    
-    Returns:
-        Lista ordenada
     """
     array = items.copy()
     n = len(array)
     
-    # Percorre a lista n vezes
+    # Percorre a lista varias vezes
     for i in range(n):
         swapped = False
-        # Compara e troca elementos adjacentes
+        # Compara e troca elementos 
         for j in range(0, n - i - 1):
             if sort_key(array[j]) > sort_key(array[j + 1]):
                 # Troca
                 array[j], array[j + 1] = array[j + 1], array[j]
                 swapped = True
-        # Se não houver trocas, a lista já está ordenada
+        # Se não houver trocas a lista já está ordenada
         if not swapped:
             break
     
@@ -116,21 +88,17 @@ def bubble_sort(items, sort_key):
 
 # Verifica se o arquivo de banco de dados existe no inicializar
 if not os.path.exists(DB_PATH):
-    print("❌ Banco de dados 'spotify.db' não encontrado.")
-    print("   Execute o script 'sql.py' para criar o banco de dados.")
+    print("Banco de dados 'spotify.db' não encontrado.")
 else:
-    print("✅ Banco de dados carregado com sucesso!")
+    print("Banco de dados carregado com sucesso!")
 
 
 def get_db():
     """
-    Obtém ou cria uma conexão com o banco de dados SQLite.
+    Obtém ou cria uma conexão com o banco de dados SQLite
     
-    Utiliza Flask's 'g' para armazenar a conexão por request (uma conexão por request).
-    Registra a função 'normalize_text' como função SQL customizada.
+    Utiliza Flask's 'g' para armazenar a conexão por request
     
-    Returns:
-        sqlite3.Connection: Conexão com o banco de dados
     """
     database = getattr(g, '_database', None)
     if database is None:
@@ -148,8 +116,6 @@ def close_database_connection(exception):
     """
     Fecha a conexão com o banco de dados ao finalizar o request.
     
-    Args:
-        exception: Exceção (se houver) que ocorreu durante o request
     """
     database = getattr(g, '_database', None)
     if database is not None:
@@ -159,34 +125,28 @@ def close_database_connection(exception):
 
 @app.route('/')
 def home():
-    """Página inicial do site."""
+
     return render_template('home.html')
 
 
 @app.route('/login')
 def login():
-    """Página de login (em desenvolvimento)."""
+   
     return render_template('login.html')
 
 
 @app.route('/registro')
 def registro():
-    """Página de registro de novo usuário (em desenvolvimento)."""
+    
     return render_template('registro.html')
 
 
-# rotas de gêneros - páginas de exploração de músicas por gênero
+# rotas de gêneros 
 
 def fetch_songs_by_genre(genre_keyword, limit=100):
     """
     Função auxiliar para buscar músicas de um gênero no banco de dados.
     
-    Args:
-        genre_keyword (str): Palavra-chave do gênero (ex: 'rock', 'pop')
-        limit (int): Número máximo de músicas a retornar
-    
-    Returns:
-        list: Lista de dicionários com título, artista e duração formatada
     """
     songs_list = []
     try:
@@ -216,7 +176,7 @@ def fetch_songs_by_genre(genre_keyword, limit=100):
         start_time = time.time()
         songs_list = bubble_sort(songs_list, lambda x: (-x['popularity'], x['artist'].lower(), x['title'].lower()))
         elapsed = time.time() - start_time
-        print(f"⏱️  [LENTO] Ordenação por BubbleSort levou {elapsed:.4f}s para {len(songs_list)} itens")
+        print(f" Ordenação por BubbleSort levou {elapsed:.4f}s para {len(songs_list)} itens")
 
         # Limita ao tamanho pedido
         songs_list = songs_list[:limit]
@@ -229,53 +189,45 @@ def fetch_songs_by_genre(genre_keyword, limit=100):
 @app.route('/rock')
 @measure_time
 def rock():
-    """Página com músicas do gênero Rock."""
+   
     songs = fetch_songs_by_genre('rock')
     return render_template('rock.html', songs=songs)
 
 
 @app.route('/pop')
 def pop():
-    """Página com músicas do gênero Pop."""
+    
     songs = fetch_songs_by_genre('pop')
     return render_template('pop.html', songs=songs)
 
 
 @app.route('/eletrônica')
 def eletronica():
-    """Página com músicas do gênero Eletrônica (Trance)."""
+    
     songs = fetch_songs_by_genre('trance')
     return render_template('eletrônica.html', songs=songs)
 
 
 @app.route('/jazz')
 def jazz():
-    """Página com músicas do gênero Jazz."""
+    
     songs = fetch_songs_by_genre('jazz')
     return render_template('jazz.html', songs=songs)
 
 
 @app.route('/sertanejo')
 def sertanejo():
-    """Página com músicas do gênero Sertanejo."""
+    
     songs = fetch_songs_by_genre('sertanejo')
     return render_template('sertanejo.html', songs=songs)
 
 
-# ROTAS DE TOPS  MusicAS - Páginas com músicas populares por gênero
+# rotas de tops de gêneros
 
 def fetch_top_songs_by_genre(genre_keyword, limit=100):
     """
     Função auxiliar para buscar as músicas mais populares de um gênero.
     
-    Ordenação: BubbleSort (O(n²)) — LENTO
-    
-    Args:
-        genre_keyword (str): Palavra-chave do gênero (ex: 'rock', 'pop')
-        limit (int): Número máximo de músicas a retornar
-    
-    Returns:
-        list: Lista de dicionários ordenada por popularidade (BubbleSort)
     """
     songs_list = []
     try:
@@ -300,7 +252,7 @@ def fetch_top_songs_by_genre(genre_keyword, limit=100):
                 "tempo": row[3] or ''
             })
     except Exception as error:
-        print(f"❌ Erro ao buscar tops de {genre_keyword}:", error)
+        print(f"Erro ao buscar tops de {genre_keyword}:", error)
 
     return songs_list
 
@@ -308,53 +260,38 @@ def fetch_top_songs_by_genre(genre_keyword, limit=100):
 @app.route('/tops-rock')
 @measure_time
 def tops_rock():
-    """Página com as músicas mais populares do gênero Rock."""
+
     songs = fetch_top_songs_by_genre('rock')
     return render_template('tops-rock.html', songs=songs)
 
 
 @app.route('/tops-sertanejo')
 def tops_sertanejo():
-    """Página com as músicas mais populares do gênero Sertanejo."""
+
     songs = fetch_top_songs_by_genre('sertanejo')
     return render_template('tops-sertanejo.html', songs=songs)
 
 
 @app.route('/tops-eletronica')
 def tops_eletronica():
-    """Página com as músicas mais populares do gênero Eletrônica."""
+
     songs = fetch_top_songs_by_genre('trance')
     return render_template('tops-eletronica.html', songs=songs)
 
 
 @app.route('/tops-pop')
 def tops_pop():
-    """Página com as músicas mais populares do gênero Pop."""
+
     songs = fetch_top_songs_by_genre('pop')
     return render_template('tops-pop.html', songs=songs)
 
 
-# ROTA DE BUSCA - Barra de pesquisa
+# rota de busca_ barra de pesquisa
 
 @app.route('/search')
 @measure_time
 def search():
-    """
-    Endpoint de busca de músicas por título ou artista.
     
-    Algoritmo: BUSCA LINEAR (O(n)) + BUBBLE SORT (O(n²)) — LENTO
-    
-    Estratégia:
-    1. Carrega TODAS as músicas do banco de dados em memória
-    2. Usa busca linear para filtrar resultados
-    3. Usa bubble sort para ordenar por relevância
-    
-    Returns:
-        JSON: Lista de até 8 músicas ordenadas por relevância
-    
-    Exemplo de requisição:
-        GET /search?query=bohemian
-    """
     search_query = request.args.get('query', '').strip()
     
     # Se a query está vazia, retorna resultado vazio
@@ -369,14 +306,14 @@ def search():
         cursor = database.cursor()
         start_time = time.time()
 
-        # Parâmetro opcional para forçar varredura completa (cuidado: MUITO LENTO)
+        # Parâmetro opcional para forçar varredura completa 
         full_scan = request.args.get('full_scan', '0') in ('1', 'true', 'True')
         batch_size = 10000
 
         results = []
 
         if full_scan:
-            print("⏱️  [LENTO-FULL] Iniciando varredura completa (fetchmany)...")
+            print(" Iniciando varredura completa ")
             cursor.execute("""
                 SELECT track_name, artist_name, formatted_duration, normalized_track, normalized_artist
                 FROM musicas
@@ -405,10 +342,10 @@ def search():
                             'artist_name': artist_name or ''
                         })
             scan_time = time.time() - scan_start
-            print(f"⏱️  [LENTO-FULL] Scan completo, carregadas {total_loaded} linhas em {scan_time:.4f}s")
+            print(f"Scan completo, carregadas {total_loaded} linhas em {scan_time:.4f}s")
         else:
             # Pré-filtra candidatos por SQL 
-            print("⏱️  [LENTO] Usando pré-filtragem SQL para reduzir candidatos")
+            print(" Usando pré-filtragem SQL para reduzir candidatos")
             cursor.execute("""
                 SELECT track_name, artist_name, formatted_duration, normalized_track, normalized_artist
                 FROM musicas
@@ -416,7 +353,7 @@ def search():
                 LIMIT 5000
             """, (f"%{normalized_query}%", f"%{normalized_query}%"))
             rows = cursor.fetchall()
-            print(f"⏱️  [LENTO] SQL retornou {len(rows)} candidatos")
+            print(f"SQL retornou {len(rows)} candidatos")
             # percorre o subset com busca linear
             for row in rows:
                 track_name, artist_name, formatted_duration, norm_track, norm_artist = row
@@ -441,7 +378,7 @@ def search():
             return (item['priority'], item['artist_name'].lower(), item['title'].lower())
         results = bubble_sort(results, multi_key_sort)
         sort_elapsed = time.time() - sort_start
-        print(f"⏱️  BubbleSort levou {sort_elapsed:.4f}s para ordenar {len(results)} itens (O(n²))")
+        print(f"BubbleSort levou {sort_elapsed:.4f}s para ordenar {len(results)} itens (O(n²))")
 
         # Remove campos auxiliares e limita a 8 resultados
         final_results = []
@@ -453,12 +390,12 @@ def search():
             })
 
         total_time = time.time() - start_time
-        print(f"⏱️  BUSCA TOTAL (LENTO): {total_time:.4f}s | {len(final_results)} resultados\n")
+        print(f" BUSCA TOTAL lento: {total_time:.4f}s | {len(final_results)} resultados\n")
 
         return jsonify(final_results)
 
     except Exception as error:
-        print(f"❌ Erro na busca: {error}")
+        print(f"Erro na busca: {error}")
         return jsonify([])
 
 
@@ -470,7 +407,7 @@ def playlists():
     try:
         db = get_db()
         cursor = db.cursor()
-        # Busca sem ORDER BY e ordena em memória via BubbleSort para simular lentidão
+        # Busca sem ORDER BY e ordena em memória via BubbleSort para lentidão
         cursor.execute("SELECT id, name, description, created_at FROM playlists")
         rows = cursor.fetchall()
         for row in rows:
@@ -480,13 +417,12 @@ def playlists():
                 'description': row[2] or '',
                 'created_at': row[3] or ''
             })
-        # Ordena em memória por created_at (BubbleSort)
+        # Ordena em memória por created_at 
         def playlist_key(p):
             return p.get('created_at') or ''
         playlists = bubble_sort(playlists, lambda x: playlist_key(x))
         playlists = list(reversed(playlists))
     except Exception as e:
-        # tabela pode não existir ainda
         print('Erro ao listar playlists:', e)
 
     return render_template('playlists.html', playlists=playlists)
@@ -528,17 +464,16 @@ def playlist_detail(playlist_id):
                     'track_id': row[3]
                 })
         except Exception:
-            # tabela playlist_tracks pode não existir ainda
             pass
         
-        # Buscar playlists para o sidebar (ordenação em memória para demo lenta)
+        # Buscar playlists para o sidebar
         playlists = []
         try:
             cursor.execute("SELECT id, name FROM playlists")
             rows = cursor.fetchall()
             for row in rows:
                 playlists.append({'id': row[0], 'name': row[1] or ''})
-            # Ordena em memória por nome (BubbleSort) para simular lentidão
+            # Ordena em memória por nome para lentidão
             playlists = bubble_sort(playlists, lambda x: x['name'].lower())
         except Exception:
             pass
@@ -592,7 +527,6 @@ def criar_playlist():
             playlists.append({'id': row[0], 'name': row[1] or ''})
         playlists = bubble_sort(playlists, lambda x: x['name'].lower())
     except Exception:
-        # tabela pode não existir ainda; ignorar
         pass
 
     return render_template('criar_playlist.html', success=success, playlists=playlists)
@@ -606,16 +540,16 @@ def delete_playlist(playlist_id):
         cursor = db.cursor()
         # remove a playlist e suas músicas associadas
         cursor.execute('DELETE FROM playlists WHERE id = ?', (playlist_id,))
-        # Também remove as músicas associadas (se a tabela existir)
+        # Também remove as músicas associadas 
         try:
             cursor.execute('DELETE FROM playlist_tracks WHERE playlist_id = ?', (playlist_id,))
         except:
             pass
         db.commit()
-        print(f"✅ Playlist {playlist_id} deletada com sucesso")
+        print(f"Playlist {playlist_id} deletada com sucesso")
     except Exception as e:
         print(f'Erro ao excluir playlist: {e}')
-    # redireciona para a lista de playlists (mais seguro que referrer)
+    # redireciona para a lista de playlists
     return redirect(url_for('criar_playlist'))
 
 
@@ -700,3 +634,4 @@ if __name__ == "__main__":
     print("Porta: 5001")
     print("="*60 + "\n")
     app.run(debug=True, port=5001)
+
