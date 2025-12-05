@@ -1,0 +1,107 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Site de Música</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='css/imagem/logo.jpg') }}">
+    <meta name="theme-color" content="#111111">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/generos.css') }}">
+    <script src="https://kit.fontawesome.com/b0a8104a4c.js" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Stack+Sans+Notch:wght@200..700&display=swap" rel="stylesheet">
+
+<body>
+    <!-- Barra lateral -->
+    <div class="container">
+        <nav class="sidebar">
+
+            <div class="logo-titulo">
+                <img src="/static/css/imagem/logo.jpg" alt="logo do site">
+                <h1>SoundWave</h1>
+            </div>
+
+            <div class="nav-library">
+                <i class="fa-solid fa-book"></i>
+                <p>Biblioteca</p>
+            </div>
+            <div class="nav-playlist">
+                <h5>Crie sua primeira playlist</h5>
+                <button>Criar Playlist</button>
+            </div>
+            <div class="nav-explore">
+                <h5>Explore as melhores playlist</h5>
+                <button>Explore Playlist</button>
+            </div>
+            <div class="nav-config">
+                <button>
+                    <i class="fa-solid fa-gear"></i>
+                    Configurações
+                </button>
+                <button>
+                    <i class="fa-solid fa-globe"></i>
+                    Linguagem
+                </button>
+            </div>
+        </nav>
+
+        <main>
+            <!-- barra de pesquisa-->
+            <header class="top-bar">
+                <div class="search-bar">
+                    <div class="search-row">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input id="search-input" placeholder="O que você quer ouvir?">
+                    </div>
+                    <div id="results" class="search-results"></div>
+                </div>
+            </header>
+
+            <!-- botões de login -->
+            <div class="login-buttons">
+                <a href="{{ url_for('login') }}"><button class="btn-entrar">Entrar</button></a>
+                <a href="{{ url_for('registro') }}"><button class="btn-cadastrar">Cadastre-se</button></a>
+            </div>
+            </header>
+
+            <!-- lista por genero -->
+            <section class="genre-list">
+                <h2>Eletrônica</h2>
+                <h3>Músicas</h3>
+
+                {% if songs %}
+                <ul class="song-list">
+                    {% for s in songs %}
+                    <li class="song-item" data-title="{{ s.title }}" data-artist="{{ s.artist }}" data-tempo="{{ s.tempo }}" data-genre="eletronica">
+                        <strong>{{ s.title }}</strong>
+                        {% if s.artist %}<span class="song-artist"> — {{ s.artist }}</span>{% endif %}
+                        {% if s.tempo %}<span class="song-duration">{{ s.tempo }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>Nenhuma música de rock encontrada.</p>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+
+   <!-- Player -->
+            <div id="player-bar" class="player-bar hidden">
+                <div class="player-controls">
+                    <button id="prev-btn"><i class="fa-solid fa-backward-step"></i></button>
+                    <button id="play-btn"><i class="fa-solid fa-play"></i></button>
+                    <button id="next-btn"><i class="fa-solid fa-forward-step"></i></button>
+                </div>
+
+                <div class="player-timeline">
+                    <span id="current-time" class="song-time"></span>
+                    <input type="range" id="progress-bar" min="0" max="100" value="0" step="1">
+                    <span id="total-time">0:00</span>
+                </div>
+
+                <div class="player-info">
+                    <span id="current-song">Nenhuma música tocando</span>
+                </div>
+
+    <script src="{{ url_for('static', filename='center.js') }}"></script>
+</body>
