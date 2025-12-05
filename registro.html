@@ -1,0 +1,34 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='css/imagem/logo.jpg') }}">
+    <meta name="theme-color" content="#111111">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/registro.css') }}">
+</head>
+
+<body>
+<div class="container">
+    <div class="form_area">
+        <p class="title">SIGN UP</p>
+        <form action="">
+            <div class="form_group">
+                <label class="sub_title" for="name">Nome</label>
+                <input placeholder="Digite seu nome " class="form_style" type="text">
+            </div>
+            <div class="form_group">
+                <label class="sub_title" for="email">Email</label>
+                <input placeholder="Digite seu email" id="email" class="form_style" type="email">
+            </div>
+            <div class="form_group">
+                <label class="sub_title" for="password">Senha</label>
+                <input placeholder="Digite sua senha" id="password" class="form_style" type="password">
+            </div>
+            <div>
+                <button class="btn">SIGN UP</button>
+                <p class="Sublink">Já tem uma conta? <a class="link" href="{{ url_for('login') }}">Entre aqui!</a></p>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
